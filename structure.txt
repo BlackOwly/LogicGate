@@ -1,0 +1,19 @@
+LogicGate/
+├── main.py
+├── gui/
+│   ├── __init__.py
+│   ├── main_window.py
+│   ├── circuit_widget.py
+│   ├── truth_table_widget.py
+│   └── gate_palette.py
+├── logic/
+│   ├── __init__.py
+│   ├── circuit.py
+│   ├── gates.py
+│   └── simulator.py
+├── utils/
+│   ├── __init__.py
+│   └── config.py
+└── resources/
+    ├── images/
+    └── styles/
