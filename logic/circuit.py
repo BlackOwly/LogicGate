@@ -98,3 +98,11 @@ class Circuit:
     def get_output_count(self):
         """Возвращает количество выходных вентилей""" 
         return len(self.output_gates)
+    
+    def clear(self):
+        """Полностью очищает схему"""
+        self.gates.clear()
+        self.connections.clear()
+        self.input_gates.clear()
+        self.output_gates.clear()
+        print("🗑️ Схема очищена")
