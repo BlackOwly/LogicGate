@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
         # Разделитель
         splitter = QSplitter(Qt.Horizontal)
         
-        # 1. Панель с вентилями (слева)
+        # 1. Панель с вентилями (слева) - СДЕЛАЕМ РЕГУЛИРУЕМОЙ
         self.gate_toolbar = GateToolbar(self.circuit)
         splitter.addWidget(self.gate_toolbar)
         
@@ -50,13 +50,16 @@ class MainWindow(QMainWindow):
         self.truth_table = TruthTableWidget(self.circuit)
         splitter.addWidget(self.truth_table)
         
-        # Пропорции
-        splitter.setSizes([150, 700, 350])
+        # УСТАНАВЛИВАЕМ МИНИМАЛЬНЫЕ И НАЧАЛЬНЫЕ РАЗМЕРЫ
+        splitter.setSizes([200, 700, 350])
+        splitter.setCollapsible(0, False)  # Нельзя полностью скрыть панель вентилей
+        splitter.setHandleWidth(8)  # Шире ручку для удобства
+        
         main_layout.addWidget(splitter)
         
         # Соединяем сигналы
         self.circuit_widget.circuit_changed.connect(self.truth_table.update_table)
-    
+
     def create_menu(self):
         menubar = self.menuBar()
         

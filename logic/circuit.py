@@ -11,29 +11,48 @@ class Circuit:
         self.output_gates = []
     
     def add_gate(self, gate_type, x, y, name=None):
-        """Добавляет новый вентиль в схему"""
         if not name:
             name = f"{gate_type}_{len(self.gates) + 1}"
         
-        # Создаем вентиль с правильным количеством входов
-        if gate_type == 'INVERTOR':
-            gate = LogicGate(gate_type, name)
-            gate.inputs = [False]  # Один вход для инвертора
-        else:
-            gate = LogicGate(gate_type, name) 
-            gate.inputs = [False, False]  # Два входа для остальных
-        
-        gate.output = False
-        gate.position = (x, y)
-        self.gates.append(gate)
-        
-        # Автоматически добавляем в соответствующие списки
+        # ОБРАБАТЫВАЕМ ВХОДНЫЕ ЭЛЕМЕНТЫ С АВТОМАТИЧЕСКОЙ НУМЕРАЦИЕЙ
         if gate_type == 'INPUT':
+            # Считаем сколько INPUT уже есть для нумерации X1, X2, X3...
+            input_count = len([g for g in self.gates if g.gate_type == 'INPUT'])
+            input_name = f"X{input_count + 1}"
+            gate = InputGate(input_name, False)
+            gate.gate_type = 'INPUT'
+            gate.position = (x, y)
             self.input_gates.append(gate)
-        elif gate_type == 'OUTPUT':
-            self.output_gates.append(gate)
+            self.gates.append(gate)
+            print(f"✓ Добавлен входной элемент: {input_name}")
+            return gate
             
-        return gate
+        elif gate_type == 'OUTPUT':
+            # Считаем сколько OUTPUT уже есть для нумерации Y1, Y2, Y3...
+            output_count = len([g for g in self.gates if g.gate_type == 'OUTPUT'])
+            output_name = f"Y{output_count + 1}"
+            gate = OutputGate(output_name)
+            gate.gate_type = 'OUTPUT'
+            gate.position = (x, y)
+            self.output_gates.append(gate)
+            self.gates.append(gate)
+            print(f"✓ Добавлен выходной элемент: {output_name}")
+            return gate
+            
+        else:
+            # Обычные логические вентили
+            gate = LogicGate(gate_type, name)
+            gate.position = (x, y)
+            
+            if gate_type == 'INVERTOR':
+                gate.inputs = [False]
+            else:
+                gate.inputs = [False, False]
+                
+            gate.output = False
+            self.gates.append(gate)
+            print(f"✓ Добавлен логический вентиль: {gate_type}")
+            return gate
     
     def add_input_gate(self, name, value=False):
         """Добавляет входной вентиль"""
