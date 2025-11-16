@@ -39,10 +39,9 @@ pip3 install PyQt5
 cd /path/to/LogicGate
 python3 main.py
 
-
-#📖 USER MANUAL - Logic Gate Simulator
-#🚀 1. INSTALLATION AND LAUNCH
-#For Linux (Ubuntu/Debian):
+📖 USER MANUAL - Logic Gate Simulator
+🚀 1. INSTALLATION AND LAUNCH
+🖥️ LINUX (Ubuntu/Debian):
 bash
 
 # Install Python3 and pip
@@ -59,7 +58,7 @@ pip3 install PyQt5
 cd /path/to/LogicGate
 python3 main.py
 
-#For Windows:
+🪟 WINDOWS:
 bash
 
 # Install Python from python.org
@@ -70,7 +69,7 @@ pip install PyQt5
 cd C:\path\to\LogicGate
 python main.py
 
-#For macOS:
+🍎 macOS:
 bash
 
 # Install via Homebrew
@@ -80,3 +79,4 @@ pip3 install PyQt5
 # Launch the program
 cd /path/to/LogicGate
 python3 main.py
+
