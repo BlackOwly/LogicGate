@@ -1,6 +1,6 @@
-📖 РУКОВОДСТВО ПОЛЬЗОВАТЕЛЯ - LogicGate
-🚀 1. УСТАНОВКА И ЗАПУСК
-Для Linux (Ubuntu/Debian):
+#📖 РУКОВОДСТВО ПОЛЬЗОВАТЕЛЯ - LogicGate
+#🚀 1. УСТАНОВКА И ЗАПУСК
+#Для Linux (Ubuntu/Debian):
 bash
 
 # Установка Python3 и pip
@@ -17,7 +17,7 @@ pip3 install PyQt5
 cd /path/to/LogicGate
 python3 main.py
 
-Для Windows:
+#Для Windows:
 bash
 
 # Установка Python с python.org
@@ -28,7 +28,7 @@ pip install PyQt5
 cd C:\path\to\LogicGate
 python main.py
 
-Для macOS:
+#Для macOS:
 bash
 
 # Установка через Homebrew
@@ -40,9 +40,9 @@ cd /path/to/LogicGate
 python3 main.py
 
 
-📖 USER MANUAL - Logic Gate Simulator
-🚀 1. INSTALLATION AND LAUNCH
-For Linux (Ubuntu/Debian):
+#📖 USER MANUAL - Logic Gate Simulator
+#🚀 1. INSTALLATION AND LAUNCH
+#For Linux (Ubuntu/Debian):
 bash
 
 # Install Python3 and pip
@@ -59,7 +59,7 @@ pip3 install PyQt5
 cd /path/to/LogicGate
 python3 main.py
 
-For Windows:
+#For Windows:
 bash
 
 # Install Python from python.org
@@ -70,7 +70,7 @@ pip install PyQt5
 cd C:\path\to\LogicGate
 python main.py
 
-For macOS:
+#For macOS:
 bash
 
 # Install via Homebrew
