@@ -8,44 +8,60 @@ class LogicGate:
     
     def calculate_output(self):
         """Вычисляет выход на основе входов с правильной логикой"""
-        # Убедимся что все входы имеют булевы значения
-        bool_inputs = [bool(inp) for inp in self.inputs]
+        # Убедимся что все входы инициализированы и являются булевыми
+        if not hasattr(self, 'inputs') or self.inputs is None:
+            self.inputs = []
+        
+        # Создаем безопасный список входов
+        safe_inputs = []
+        for inp in self.inputs:
+            if inp is None:
+                safe_inputs.append(False)
+            else:
+                safe_inputs.append(bool(inp))
+        
+        print(f"🔍 {self.gate_type} вычисление: входы = {safe_inputs}")
         
         if self.gate_type == "AND":
-            return all(bool_inputs) if bool_inputs else False
+            result = all(safe_inputs) if safe_inputs else False
             
         elif self.gate_type == "OR":
-            return any(bool_inputs) if bool_inputs else False
+            result = any(safe_inputs) if safe_inputs else False
             
         elif self.gate_type == "NOT" or self.gate_type == "INVERTOR":
-            return not bool_inputs[0] if bool_inputs else False
+            result = not safe_inputs[0] if safe_inputs else False
             
         elif self.gate_type == "NAND":
-            return not all(bool_inputs) if bool_inputs else True
+            result = not all(safe_inputs) if safe_inputs else True
             
         elif self.gate_type == "NOR":
-            return not any(bool_inputs) if bool_inputs else True
+            result = not any(safe_inputs) if safe_inputs else True
             
         elif self.gate_type == "XOR":
             # Исключающее ИЛИ: истинно когда входы разные
-            if len(bool_inputs) >= 2:
-                return bool_inputs[0] != bool_inputs[1]
-            return False
+            if len(safe_inputs) >= 2:
+                result = safe_inputs[0] != safe_inputs[1]
+            else:
+                result = False
             
         elif self.gate_type == "XNOR":
             # Исключающее ИЛИ-НЕ: истинно когда входы одинаковые
-            if len(bool_inputs) >= 2:
-                return bool_inputs[0] == bool_inputs[1]
-            return False
+            if len(safe_inputs) >= 2:
+                result = safe_inputs[0] == safe_inputs[1]
+            else:
+                result = False
             
         elif self.gate_type == "INPUT":
-            return self.output  # INPUT просто возвращает свое значение
+            result = self.output  # INPUT просто возвращает свое значение
             
         elif self.gate_type == "OUTPUT":
-            return bool_inputs[0] if bool_inputs else False
+            result = safe_inputs[0] if safe_inputs else False
             
         else:
-            return False
+            result = False
+        
+        print(f"🎯 {self.gate_type} результат: {result}")
+        return result
     
     def set_input(self, index, value):
         """Устанавливает значение входа по индексу"""

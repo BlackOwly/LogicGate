@@ -160,19 +160,27 @@ class CircuitWidget(QWidget):
                 painter.setBrush(QColor(0, 255, 0, 150))
                 painter.drawEllipse(input_x-5, input_y-5, 10, 10)
             
-        else:
-            # Обычные вентили - входы слева, выход справа
-            input_count = 1 if gate.gate_type == 'INVERTOR' else 2
-            for i in range(input_count):
-                input_x = x
-                input_y = y + (i+1) * size // (input_count+1)
-                painter.setBrush(Qt.black)  # Черная заливка для кружков
-                painter.drawEllipse(input_x-3, input_y-3, 6, 6)
+        # Для INVERTOR добавим индикатор
+        elif gate.gate_type == 'INVERTOR':
+            # У инвертора только ОДИН ВХОД (слева)
+            input_x = x
+            input_y = y + size // 2
+            painter.setBrush(Qt.black)
+            painter.drawEllipse(input_x-3, input_y-3, 6, 6)
             
-            output_x = x + size
-            output_y = y + size // 2
-            painter.setBrush(Qt.black)  # Черная заливка для кружков
-            painter.drawEllipse(output_x-3, output_y-3, 6, 6)
+            # Индикатор соединения
+            has_connection = any(conn[1] == gate for conn in self.circuit.connections)
+            if has_connection:
+                painter.setBrush(QColor(0, 255, 0, 150))
+                painter.drawEllipse(input_x-5, input_y-5, 10, 10)
+
+        # Для других вентилей тоже можно добавить индикаторы
+        elif gate.gate_type in ['AND', 'OR', 'NAND', 'NOR', 'XOR', 'XNOR']:
+            # Покажем количество подключенных входов
+            connection_count = sum(1 for conn in self.circuit.connections if conn[1] == gate)
+            if connection_count > 0:
+                painter.setPen(QPen(Qt.black))
+                painter.drawText(x + size - 15, y + 15, f"{connection_count}/2")
     def draw_wires(self, painter):
         """Рисуем все соединения между вентилями с обходом препятствий"""
         painter.setPen(QPen(QColor(Config.WIRE_COLOR), Config.WIRE_THICKNESS))
@@ -454,9 +462,9 @@ class CircuitWidget(QWidget):
             
             if target_gate and target_gate != self.wire_start_gate:
                 if self.wire_is_output:
-                    # ПРОВЕРЯЕМ ДЛЯ OUTPUT - МОЖЕТ ИМЕТЬ ТОЛЬКО ОДИН ВХОД
+                    # ОГРАНИЧИВАЕМ ВХОДЫ ДЛЯ ВСЕХ ВЕНТИЛЕЙ
                     if target_gate.gate_type == 'OUTPUT':
-                        # Если у OUTPUT уже есть соединение - удаляем старое
+                        # OUTPUT может иметь только ОДИН вход
                         existing_connections = [
                             conn for conn in self.circuit.connections 
                             if conn[1] == target_gate
@@ -465,8 +473,29 @@ class CircuitWidget(QWidget):
                             self.circuit.connections.remove(conn)
                             print(f"Удалено старое соединение с выходом {target_gate.name}")
                     
+                    elif target_gate.gate_type == 'INVERTOR':
+                        # INVERTOR может иметь только ОДИН вход
+                        existing_connections = [
+                            conn for conn in self.circuit.connections 
+                            if conn[1] == target_gate
+                        ]
+                        for conn in existing_connections:
+                            self.circuit.connections.remove(conn)
+                            print(f"Удалено старое соединение с инвертором")
+                    
+                    elif target_gate.gate_type in ['AND', 'OR', 'NAND', 'NOR', 'XOR', 'XNOR']:
+                        # Эти вентили могут иметь до 2 входов
+                        existing_connections = [
+                            conn for conn in self.circuit.connections 
+                            if conn[1] == target_gate
+                        ]
+                        if len(existing_connections) >= 2:
+                            # Удаляем самое старое соединение если уже 2 входа
+                            self.circuit.connections.remove(existing_connections[0])
+                            print(f"Удалено старое соединение с {target_gate.gate_type}")
+                    
                     # Соединяем выход с входом
-                    input_count = 1 if target_gate.gate_type == 'INVERTOR' else 2
+                    input_count = 1 if target_gate.gate_type in ['INVERTOR', 'OUTPUT'] else 2
                     closest_input = 0
                     min_distance = float('inf')
                     for i in range(input_count):
@@ -478,11 +507,12 @@ class CircuitWidget(QWidget):
                     
                     self.circuit.connect_gates(self.wire_start_gate, target_gate, closest_input)
                     self.schedule_circuit_changed()
-                    print(f"Соединено: {self.wire_start_gate.gate_type} -> {target_gate.gate_type} {target_gate.name}")
+                    print(f"Соединено: {self.wire_start_gate.gate_type} -> {target_gate.gate_type}[вход {closest_input}]")
                 
             self.wire_start = None
             self.wire_start_gate = None
             self.update()
+
         
     def transform_pos(self, pos):
         """Преобразует экранные координаты в координаты схемы с учетом масштаба и смещения"""

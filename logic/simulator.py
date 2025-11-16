@@ -58,16 +58,16 @@ class Simulator:
         """Распространяет сигналы по схеме, возвращает True если были изменения"""
         changed = False
         
-        # ОБНОВЛЯЕМ ВХОДЫ ВСЕХ ВЕНТИЛЕЙ ИЗ СОЕДИНЕНИЙ
+        # ПРОХОД 1: Обновляем ВСЕ входы из соединений
         for source_gate, target_gate, input_index in self.circuit.connections:
             if input_index < len(target_gate.inputs):
                 new_value = source_gate.calculate_output()
                 if target_gate.inputs[input_index] != new_value:
                     target_gate.inputs[input_index] = new_value
                     changed = True
-                    print(f"📡 {source_gate.gate_type} -> вход[{input_index}] {target_gate.gate_type}: {new_value}")
+                    print(f"📡 {source_gate.gate_type}({source_gate.output}) -> {target_gate.gate_type}[вход{input_index}]: {new_value}")
         
-        # ВЫЧИСЛЯЕМ ВЫХОДЫ ВСЕХ ВЕНТИЛЕЙ
+        # ПРОХОД 2: Вычисляем ВСЕ выходы после обновления входов
         for gate in self.circuit.gates:
             if gate.gate_type not in ['INPUT']:
                 old_output = gate.output
@@ -76,7 +76,7 @@ class Simulator:
                 if old_output != new_output:
                     gate.output = new_output
                     changed = True
-                    print(f"🎯 {gate.gate_type} выход: {old_output} -> {new_output} (входы: {gate.inputs})")
+                    print(f"🎯 {gate.gate_type} выход: {old_output} -> {new_output}")
         
         return changed
         
