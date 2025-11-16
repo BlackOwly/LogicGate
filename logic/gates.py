@@ -7,21 +7,43 @@ class LogicGate:
         self.position = (0, 0)  # x, y coordinates
     
     def calculate_output(self):
-        """Вычисляет выход на основе входов"""
+        """Вычисляет выход на основе входов с правильной логикой"""
+        # Убедимся что все входы имеют булевы значения
+        bool_inputs = [bool(inp) for inp in self.inputs]
+        
         if self.gate_type == "AND":
-            return all(self.inputs)
+            return all(bool_inputs) if bool_inputs else False
+            
         elif self.gate_type == "OR":
-            return any(self.inputs)
-        elif self.gate_type == "NOT":
-            return not self.inputs[0] if self.inputs else False
+            return any(bool_inputs) if bool_inputs else False
+            
+        elif self.gate_type == "NOT" or self.gate_type == "INVERTOR":
+            return not bool_inputs[0] if bool_inputs else False
+            
         elif self.gate_type == "NAND":
-            return not all(self.inputs)
+            return not all(bool_inputs) if bool_inputs else True
+            
         elif self.gate_type == "NOR":
-            return not any(self.inputs)
+            return not any(bool_inputs) if bool_inputs else True
+            
         elif self.gate_type == "XOR":
-            return sum(self.inputs) == 1 if len(self.inputs) == 2 else False
+            # Исключающее ИЛИ: истинно когда входы разные
+            if len(bool_inputs) >= 2:
+                return bool_inputs[0] != bool_inputs[1]
+            return False
+            
         elif self.gate_type == "XNOR":
-            return sum(self.inputs) != 1 if len(self.inputs) == 2 else False
+            # Исключающее ИЛИ-НЕ: истинно когда входы одинаковые
+            if len(bool_inputs) >= 2:
+                return bool_inputs[0] == bool_inputs[1]
+            return False
+            
+        elif self.gate_type == "INPUT":
+            return self.output  # INPUT просто возвращает свое значение
+            
+        elif self.gate_type == "OUTPUT":
+            return bool_inputs[0] if bool_inputs else False
+            
         else:
             return False
     

@@ -73,6 +73,7 @@ class Circuit:
         connection = (source_gate, target_gate, target_input_index)
         if connection not in self.connections:
             self.connections.append(connection)
+            print(f"🔌 СОЕДИНЕНИЕ: {source_gate.gate_type} -> {target_gate.gate_type}[вход{target_input_index}]")
             return True
         return False
     

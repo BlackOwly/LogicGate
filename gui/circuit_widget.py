@@ -25,6 +25,12 @@ class CircuitWidget(QWidget):
         self.wire_is_output = None
         self.selected_gate = None
         self.hovered_gate = None
+
+        # ДОБАВИМ ТАЙМЕР ДЛЯ ОГРАНИЧЕНИЯ СИГНАЛОВ
+        self.change_timer = QTimer()
+        self.change_timer.setSingleShot(True)
+        self.change_timer.timeout.connect(self._emit_circuit_changed)
+        self.pending_changes = False
         
         # ДОБАВИМ МАСШТАБИРОВАНИЕ
         self.scale = 1.0
@@ -33,7 +39,7 @@ class CircuitWidget(QWidget):
         self.panning = False
         self.pan_start_pos = QPoint()
         
-        # ДОБАВЬ ЭТУ СТРОКУ:
+
         self.last_mouse_pos = QPoint(0, 0)
         
         self.setAcceptDrops(True)
@@ -77,14 +83,6 @@ class CircuitWidget(QWidget):
             painter.drawLine(self.wire_start, self.last_mouse_pos)
     
     def draw_grid(self, painter):
-        painter.setPen(QPen(QColor(Config.GRID_COLOR), 1, Qt.DotLine))
-        grid_size = 20
-        for x in range(0, self.width(), grid_size):
-            painter.drawLine(x, 0, x, self.height())
-        for y in range(0, self.height(), grid_size):
-            painter.drawLine(0, y, self.width(), y)
-    
-    def draw_grid(self, painter):
         grid_size = 20
         # Учитываем масштаб для размера сетки
         effective_grid_size = grid_size * self.scale
@@ -125,7 +123,7 @@ class CircuitWidget(QWidget):
         if gate.gate_type == 'INPUT':
             painter.drawText(x, y, size, size, Qt.AlignCenter, f"In\n{gate.name}")
         elif gate.gate_type == 'OUTPUT':
-            painter.drawText(x, y, size, size, Qt.AlignCenter, f"Out\n{gate.name}")
+            painter.drawText(x, y, size, size, Qt.AlignCenter, f"Out\n{gate.name}")  # ← ДОБАВЬ ТЕКСТ ДЛЯ OUTPUT
         else:
             # Для обычных вентилей пытаемся загрузить иконку
             icon_path = Config.get_icon_path(gate.gate_type)
@@ -155,6 +153,13 @@ class CircuitWidget(QWidget):
             painter.setBrush(Qt.black)  # Черная заливка для кружков
             painter.drawEllipse(input_x-3, input_y-3, 6, 6)
             
+            # === ДОБАВЬ ЗДЕСЬ ИНДИКАТОР СОЕДИНЕНИЯ ===
+            # ПОКАЖЕМ ЕСТЬ ЛИ СОЕДИНЕНИЕ С ЭТИМ OUTPUT
+            has_connection = any(conn[1] == gate for conn in self.circuit.connections)
+            if has_connection:
+                painter.setBrush(QColor(0, 255, 0, 150))
+                painter.drawEllipse(input_x-5, input_y-5, 10, 10)
+            
         else:
             # Обычные вентили - входы слева, выход справа
             input_count = 1 if gate.gate_type == 'INVERTOR' else 2
@@ -169,7 +174,7 @@ class CircuitWidget(QWidget):
             painter.setBrush(Qt.black)  # Черная заливка для кружков
             painter.drawEllipse(output_x-3, output_y-3, 6, 6)
     def draw_wires(self, painter):
-        """Рисуем все соединения между вентилями"""
+        """Рисуем все соединения между вентилями с обходом препятствий"""
         painter.setPen(QPen(QColor(Config.WIRE_COLOR), Config.WIRE_THICKNESS))
         
         for source_gate, target_gate, input_index in self.circuit.connections:
@@ -182,11 +187,26 @@ class CircuitWidget(QWidget):
             input_count = 1 if target_gate.gate_type == 'INVERTOR' else 2
             target_y = target_gate.position[1] + (input_index+1) * Config.GATE_SIZE // (input_count+1)
             
-            # Рисуем провод с изгибом
-            mid_x = (source_x + target_x) // 2
-            painter.drawLine(source_x, source_y, mid_x, source_y)  # Горизонталь от выхода
-            painter.drawLine(mid_x, source_y, mid_x, target_y)     # Вертикаль
-            painter.drawLine(mid_x, target_y, target_x, target_y)  # Горизонталь ко входу
+            start_point = QPoint(source_x, source_y)
+            end_point = QPoint(target_x, target_y)
+            
+            # Проверяем есть ли препятствия на прямом пути
+            if self.is_path_clear(start_point, end_point, source_gate, target_gate):
+                # Прямой путь свободен - рисуем L-образный провод как раньше
+                mid_x = (source_x + target_x) // 2
+                painter.drawLine(source_x, source_y, mid_x, source_y)
+                painter.drawLine(mid_x, source_y, mid_x, target_y)
+                painter.drawLine(mid_x, target_y, target_x, target_y)
+            else:
+                # Путь заблокирован - ищем обходной путь
+                path = self.find_wire_path(start_point, end_point, source_gate, target_gate)
+                
+                # Рисуем путь с углами (только горизонтальные/вертикальные линии)
+                for i in range(len(path) - 1):
+                    p1 = path[i]
+                    p2 = path[i + 1]
+                    painter.drawLine(p1, p2)
+
     def wheelEvent(self, event):
         """Обработка колесика мыши для масштабирования"""
         zoom_in = event.angleDelta().y() > 0
@@ -413,10 +433,9 @@ class CircuitWidget(QWidget):
         self.last_mouse_pos = event.pos()
         
         if self.dragging_gate:
-            # Перемещаем вентиль с учетом масштаба
             new_pos = self.transform_pos(event.pos()) - self.dragging_offset
             self.dragging_gate.position = (new_pos.x(), new_pos.y())
-            self.circuit_changed.emit()
+            self.schedule_circuit_changed()  # ← вместо circuit_changed.emit()
             self.update()
         elif self.wire_start:
             self.update()
@@ -428,15 +447,6 @@ class CircuitWidget(QWidget):
             self.update()
                     
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.panning = False
-        
-        if event.button() == Qt.RightButton and self.dragging_gate:
-            self.dragging_gate = None
-            print("Перемещение остановлено")
-            return
-        
-        # Остальной код для проводов
         if self.wire_start:
             # Завершаем рисование провода
             transformed_pos = self.transform_pos(event.pos())
@@ -444,6 +454,18 @@ class CircuitWidget(QWidget):
             
             if target_gate and target_gate != self.wire_start_gate:
                 if self.wire_is_output:
+                    # ПРОВЕРЯЕМ ДЛЯ OUTPUT - МОЖЕТ ИМЕТЬ ТОЛЬКО ОДИН ВХОД
+                    if target_gate.gate_type == 'OUTPUT':
+                        # Если у OUTPUT уже есть соединение - удаляем старое
+                        existing_connections = [
+                            conn for conn in self.circuit.connections 
+                            if conn[1] == target_gate
+                        ]
+                        for conn in existing_connections:
+                            self.circuit.connections.remove(conn)
+                            print(f"Удалено старое соединение с выходом {target_gate.name}")
+                    
+                    # Соединяем выход с входом
                     input_count = 1 if target_gate.gate_type == 'INVERTOR' else 2
                     closest_input = 0
                     min_distance = float('inf')
@@ -455,11 +477,13 @@ class CircuitWidget(QWidget):
                             closest_input = i
                     
                     self.circuit.connect_gates(self.wire_start_gate, target_gate, closest_input)
-                    self.circuit_changed.emit()
-            
+                    self.schedule_circuit_changed()
+                    print(f"Соединено: {self.wire_start_gate.gate_type} -> {target_gate.gate_type} {target_gate.name}")
+                
             self.wire_start = None
             self.wire_start_gate = None
             self.update()
+        
     def transform_pos(self, pos):
         """Преобразует экранные координаты в координаты схемы с учетом масштаба и смещения"""
         return QPoint(
@@ -520,3 +544,122 @@ class CircuitWidget(QWidget):
             self.scale = 1.0
             self.offset = QPoint(0, 0)
             self.update()
+    
+    def find_wire_path(self, start_point, end_point, source_gate=None, target_gate=None):
+        """Находит угловатый путь для провода с обходом вентилей"""
+        start_x, start_y = start_point.x(), start_point.y()
+        end_x, end_y = end_point.x(), end_point.y()
+        
+        # Пробуем разные обходные маршруты
+        paths_to_try = []
+        
+        # Маршрут 1: вверх -> вправо -> вниз
+        avoid_y = start_y - 80
+        path1 = [
+            start_point,
+            QPoint(start_x, avoid_y),      # вверх
+            QPoint(end_x, avoid_y),        # вправо
+            end_point
+        ]
+        if self.is_path_clear_multiple(path1, source_gate, target_gate):
+            return path1
+        
+        # Маршрут 2: вниз -> вправо -> вверх
+        avoid_y = start_y + 80
+        path2 = [
+            start_point,
+            QPoint(start_x, avoid_y),      # вниз
+            QPoint(end_x, avoid_y),        # вправо
+            end_point
+        ]
+        if self.is_path_clear_multiple(path2, source_gate, target_gate):
+            return path2
+        
+        # Если оба маршрута заблокированы, возвращаем базовый L-образный
+        mid_x = (start_x + end_x) // 2
+        return [
+            start_point,
+            QPoint(mid_x, start_y),
+            QPoint(mid_x, end_y),
+            end_point
+        ]
+    def is_path_clear(self, point1, point2, source_gate=None, target_gate=None):
+        """Проверяет свободен ли путь между двумя точками"""
+        # Создаем временный прямоугольник между точками
+        rect = QRect(
+            min(point1.x(), point2.x()) - 5,
+            min(point1.y(), point2.y()) - 5,
+            abs(point2.x() - point1.x()) + 10,
+            abs(point2.y() - point1.y()) + 10
+        )
+        
+        # Проверяем пересечение с каждым вентилем (кроме тех, что соединяем)
+        for gate in self.circuit.gates:
+            if source_gate and gate == source_gate:
+                continue
+            if target_gate and gate == target_gate:
+                continue
+                
+            gate_rect = QRect(
+                gate.position[0] - 5,
+                gate.position[1] - 5,
+                Config.GATE_SIZE + 10,
+                Config.GATE_SIZE + 10
+            )
+            
+            if rect.intersects(gate_rect):
+                return False
+        
+        return True
+    def is_path_clear_multiple(self, points, source_gate=None, target_gate=None):
+        """Проверяет свободен ли путь через несколько точек"""
+        for i in range(len(points) - 1):
+            if not self.is_path_clear(points[i], points[i + 1], source_gate, target_gate):
+                return False
+        return True
+
+    def line_intersects_rect(self, p1, p2, rect):
+        """Проверяет пересекает ли линия прямоугольник"""
+        # Простая проверка - если оба конца линии внутри rect
+        if rect.contains(p1) or rect.contains(p2):
+            return True
+        
+        # Проверяем пересечение с каждой стороной прямоугольника
+        sides = [
+            (rect.topLeft(), rect.topRight()),    # верх
+            (rect.topRight(), rect.bottomRight()), # право
+            (rect.bottomRight(), rect.bottomLeft()), # низ
+            (rect.bottomLeft(), rect.topLeft())   # лево
+        ]
+        
+        for side_start, side_end in sides:
+            if self.lines_intersect(p1, p2, side_start, side_end):
+                return True
+        
+        return False
+
+    def lines_intersect(self, a1, a2, b1, b2):
+        """Проверяет пересекаются ли два отрезка"""
+        def ccw(A, B, C):
+            return (C.y() - A.y()) * (B.x() - A.x()) > (B.y() - A.y()) * (C.x() - A.x())
+        
+        return ccw(a1, b1, b2) != ccw(a2, b1, b2) and ccw(a1, a2, b1) != ccw(a1, a2, b2)
+
+    def path_length(self, points):
+        """Вычисляет длину пути"""
+        length = 0
+        for i in range(len(points) - 1):
+            dx = points[i+1].x() - points[i].x()
+            dy = points[i+1].y() - points[i].y()
+            length += (dx**2 + dy**2)**0.5
+        return length
+    def schedule_circuit_changed(self):
+        """Планирует отправку сигнала об изменении с задержкой"""
+        self.pending_changes = True
+        self.change_timer.start(300)  # 300ms задержка
+
+    def _emit_circuit_changed(self):
+        """Фактическая отправка сигнала после задержки"""
+        if self.pending_changes:
+            self.circuit_changed.emit()
+            self.pending_changes = False
